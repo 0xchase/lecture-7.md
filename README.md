@@ -86,12 +86,16 @@ Deref coercion is a convenience that Rust performs on arguments to functions and
 
 Deref coercion was added to Rust so that programmers writing function and method calls don’t need to add as many explicit references and dereferences with & and *. The deref coercion feature also lets us write more code that can work for either references or smart pointers.
 
-To see an example, we can sue our MyBox type.
+To see an example, we can use our MyBox type.
 
 ```rust
 fn main() {
     let m = MyBox::new(String::from("Rust"));
     hello(&m);
+}
+
+fn hello(name: &str) {
+    println!("Hello, {}!", name);
 }
 ```
 
@@ -103,6 +107,10 @@ If Rust didn't implement deref coercion, we would have to write the following co
 fn main() {
     let m = MyBox::new(String::from("Rust"));
     hello(&(*m)[..]);
+}
+
+fn hello(name: &str) {
+    println!("Hello, {}!", name);
 }
 ```
 
