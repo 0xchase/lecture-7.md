@@ -12,84 +12,13 @@ The most straightforward smart pointer is a box. Boxes allow you to store data o
 
 ### Using a Box to Store Data on the Heap
 
-```rust
-fn main() {
-    let b = Box::new(5);
-    println!("b = {}", b);
-}
-```
+*Open box1.rs*
 
 We define the variable b to have the value of a Box that points to the value 5, which is allocated on the heap. This program will print b = 5; in this case, we can access the data in the box similar to how we would if this data were on the stack. Just like any owned value, when a box goes out of scope, as b does at the end of main, it will be deallocated. The deallocation happens for the box (stored on the stack) and the data it points to (stored on the heap).
 
 Boxed values can be dereferenced using the `*` operator, which removes one layer of indirection. Below we have a more complicated example, which we will talk through line by line. 
 
-```rust
-use std::mem;
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
-struct Point {
-    x: f64,
-    y: f64,
-}
-
-// A Rectangle can be specified by where its top left and bottom right 
-// corners are in space
-#[allow(dead_code)]
-struct Rectangle {
-    top_left: Point,
-    bottom_right: Point,
-}
-
-fn origin() -> Point {
-    Point { x: 0.0, y: 0.0 }
-}
-
-fn boxed_origin() -> Box<Point> {
-    // Allocate this point on the heap, and return a pointer to it
-    Box::new(Point { x: 0.0, y: 0.0 })
-}
-
-fn main() {
-    // (all the type annotations are superfluous)
-    // Stack allocated variables
-    let point: Point = origin();
-    let rectangle: Rectangle = Rectangle {
-        top_left: origin(),
-        bottom_right: Point { x: 3.0, y: -4.0 }
-    };
-
-    // Heap allocated rectangle
-    let boxed_rectangle: Box<Rectangle> = Box::new(Rectangle {
-        top_left: origin(),
-        bottom_right: Point { x: 3.0, y: -4.0 },
-    });
-
-    // The output of functions can be boxed
-    let boxed_point: Box<Point> = Box::new(origin());
-
-    // Double indirection
-    let box_in_a_box: Box<Box<Point>> = Box::new(boxed_origin());
-
-    println!("Point occupies {} bytes on the stack",
-             mem::size_of_val(&point));
-    println!("Rectangle occupies {} bytes on the stack",
-             mem::size_of_val(&rectangle));
-
-    // box size == pointer size
-    println!("Boxed point occupies {} bytes on the stack",
-             mem::size_of_val(&boxed_point));
-    println!("Boxed rectangle occupies {} bytes on the stack",
-             mem::size_of_val(&boxed_rectangle));
-    println!("Boxed box occupies {} bytes on the stack",
-             mem::size_of_val(&box_in_a_box));
-
-    // Copy the data contained in `boxed_point` into `unboxed_point`
-    let unboxed_point: Point = *boxed_point;
-    println!("Unboxed point occupies {} bytes on the stack",
-             mem::size_of_val(&unboxed_point));
-}
-```
+*Open box2.rs*
 
 ### Recursive Types with Box
 
@@ -101,39 +30,7 @@ The cons function concept has made its way into more general functional programm
 
 Each item in a cons list contains two elements: the value of the current item and the next item. The last item in the list contains only a value called Nil without a next item. A cons list is produced by recursively calling the cons function. The canonical name to denote the base case of the recursion is Nil. 
 
-To implement this data structure, we can first define the following enum.
-
-```rust
-enum List {
-    Cons(i32, List),
-    Nil,
-}
-```
-
-Then we can create our list as shown below.
-
-```rust
-use crate::List::{Cons, Nil};
-
-fn main() {
-    let list = Cons(1, Cons(2, Cons(3, Nil)));
-}
-```
-
-When compiling this, we get an error. Why? Rust can’t figure out how much space to allocate for recursively defined types.
-
-```rust
-enum List {
-    Cons(i32, Box<List>),
-    Nil,
-}
-
-use crate::List::{Cons, Nil};
-
-fn main() {
-    let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
-}
-```
+*Enum example*
 
 Boxes provide only the indirection and heap allocation; they don’t have any other special capabilities, like those we’ll see with the other smart pointer types. They also don’t have any performance overhead that these special capabilities incur, so they can be useful in cases like the cons list where the indirection is the only feature we need.
 
@@ -149,59 +46,7 @@ Implementing the Deref trait allows you to customize the behavior of the derefer
 
 Here is a simple example of using Box like a reference.
 
-```rust
-fn main() {
-    let x = 5;
-    let y = Box::new(x);
-
-    assert_eq!(5, x);
-    assert_eq!(5, *y);
-}
-```
-
-The trait that enables this behavior is known as the `Deref` trait. We can see how it works with the following example.
-
-```rust
-struct MyBox<T>(T);
-
-impl<T> MyBox<T> {
-    fn new(x: T) -> MyBox<T> {
-        MyBox(x)
-    }
-}
-```
-
-Here we have a basic struct MyBox, for which the new method creates a new box with an element of type T. We can allow this type to be dereferenced by implementing the `Deref` trait.
-
-```rust
-use std::ops::Deref;
-
-impl<T> Deref for MyBox<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-```
-
-This would allow us to compile the following example.
-
-```rust
-fn main() {
-    let x = 5;
-    let y = MyBox::new(x);
-
-    assert_eq!(5, x);
-    assert_eq!(5, *y);
-}
-```
-
-Behind the scenes in this example, what is actually run is this.
-
-```rust
-*(y.deref())
-```
+*Deref example*
 
 Without the Deref trait, the compiler can only dereference & references. The deref method gives the compiler the ability to take a value of any type that implements Deref and call the deref method to get a & reference that it knows how to dereference. The reason the deref method returns a reference to a value, and that the plain dereference outside the parentheses in \*(y.deref()) is still necessary, is the ownership system. If the deref method returned the value directly instead of a reference to the value, the value would be moved out of self.
 
@@ -211,54 +56,7 @@ The second trait important to the smart pointer pattern is Drop, which lets you 
 
 The following examples shows implementing a custom smart pointer, which will print when the instance goes out of scope.
 
-```rust
-struct CustomSmartPointer {
-    data: String,
-}
-
-impl Drop for CustomSmartPointer {
-    fn drop(&mut self) {
-        println!("Dropping CustomSmartPointer with data `{}`!", self.data);
-    }
-}
-
-fn main() {
-    let c = CustomSmartPointer {
-        data: String::from("my stuff"),
-    };
-    let d = CustomSmartPointer {
-        data: String::from("other stuff"),
-    };
-    println!("End of main");
-}
-```
-
-When running this example, Rust automatically called drop for us when our instances went out of scope, calling the code we specified. Variables are dropped in the reverse order of their creation, so d was dropped before c. This example gives you a visual guide to how the drop method works; usually you would specify the cleanup code that your type needs to run rather than a print message.
-
-You can also call drop manually.
-
-```rust
-struct CustomSmartPointer {
-    data: String,
-}
-
-impl Drop for CustomSmartPointer {
-    fn drop(&mut self) {
-        println!("Dropping CustomSmartPointer with data `{}`!", self.data);
-    }
-}
-
-fn main() {
-    let c = CustomSmartPointer {
-        data: String::from("my stuff"),
-    };
-    let d = CustomSmartPointer {
-        data: String::from("other stuff"),
-    };
-    c.drop();
-    println!("End of main");
-}
-```
+*Drop example*
 
 In this case c is dropped before d, and before the variable goes out of scope. 
 
@@ -268,58 +66,19 @@ Given that background on how smart pointers are implemented, we can now discuss 
 
 To enable multiple ownership, Rust has a type called Rc, which is an abbreviation for reference counting. The Rc type keeps track of the number of references to a value to determine whether or not the value is still in use. If there are zero references to a value, the value can be cleaned up without any references becoming invalid.
 
-```rust
-enum List {
-    Cons(i32, Box<List>),
-    Nil,
-}
-
-use crate::List::{Cons, Nil};
-
-fn main() {
-    let a = Cons(5, Box::new(Cons(10, Box::new(Nil))));
-    let b = Cons(3, Box::new(a));
-    let c = Cons(4, Box::new(a));
-}
-```
+*Open rc1.rs*
 
 Here is an example that attempts multiple ownership. Will this compile? Why or why not?
 
 To fix this example, we can change the definition of List to uce Rc in place of Box. When we create b, instead of taking ownership of a, we’ll clone the Rc that a is holding, thereby increasing the number of references from one to two and letting a and b share ownership of the data in that Rc. We’ll also clone a when creating c, increasing the number of references from two to three. Every time we call Rc::clone, the reference count to the data within the Rc will increase, and the data won’t be cleaned up unless there are zero references to it.
 
-```rust
-enum List {
-    Cons(i32, Rc<List>),
-    Nil,
-}
-
-use crate::List::{Cons, Nil};
-use std::rc::Rc;
-
-fn main() {
-    let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
-    let b = Cons(3, Rc::clone(&a));
-    let c = Cons(4, Rc::clone(&a));
-}
-```
+*Rc example 1*
 
 We need to add the `use` statement to bring `Rc` into scope. The implementation of Rc::clone doesn’t make a deep copy of all the data like most types’ implementations of clone do. The call to Rc::clone only increments the reference count, which doesn’t take much time.
 
 In the following example, we can see the reference count values after each assigment statement. 
 
-```rust
-fn main() {
-    let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
-    println!("count after creating a = {}", Rc::strong_count(&a));
-    let b = Cons(3, Rc::clone(&a));
-    println!("count after creating b = {}", Rc::strong_count(&a));
-    {
-        let c = Cons(4, Rc::clone(&a));
-        println!("count after creating c = {}", Rc::strong_count(&a));
-    }
-    println!("count after c goes out of scope = {}", Rc::strong_count(&a));
-}
-```
+*Open rc2.rs*
 
 ### Implicit Deref Coercions
 
