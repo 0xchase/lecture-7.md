@@ -46,6 +46,19 @@ Implementing the Deref trait allows you to customize the behavior of the derefer
 
 Here is a simple example of using Box like a reference.
 
+```rust
+fn main() {
+    let x = 5;
+    let y = Box::new(x);
+
+    assert_eq!(5, x);
+    assert_eq!(5, *y);
+}
+```
+
+The trait that enables this behavior is known as the `Deref` trait. We can see how it works with the following example.
+
+
 *Deref example*
 
 Without the Deref trait, the compiler can only dereference & references. The deref method gives the compiler the ability to take a value of any type that implements Deref and call the deref method to get a & reference that it knows how to dereference. The reason the deref method returns a reference to a value, and that the plain dereference outside the parentheses in \*(y.deref()) is still necessary, is the ownership system. If the deref method returned the value directly instead of a reference to the value, the value would be moved out of self.
